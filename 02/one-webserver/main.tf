@@ -9,8 +9,13 @@ provider "aws" {
 
 
 # 1) SG(80) 그룹 생성
+
+
 resource "aws_security_group" "mySG" {
-  name        = "allow_80"
+  # 수정 전
+  # name        = "allow_80"
+  # 수정 후
+  name        = var.mywebserver_security_group
   description = "Allow 80 inbound traffic and all outbound traffic"
 
   tags = {
@@ -18,12 +23,13 @@ resource "aws_security_group" "mySG" {
   }
 }
 
+# [수정후]
 resource "aws_vpc_security_group_ingress_rule" "allow_80" {
   security_group_id = aws_security_group.mySG.id
   cidr_ipv4         = "0.0.0.0/0"
-  from_port         = 80
+  from_port         = var.server_port
   ip_protocol       = "tcp"
-  to_port           = 80
+  to_port           = var.server_port
 }
 
 resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_ipv4" {
