@@ -22,9 +22,9 @@ data "aws_vpc" "default" {
 
 data "aws_subnets" "default" {
   filter {
-    name = "vpc-id"
+    name   = "vpc-id"
     values = [data.aws_vpc.default.id]
-    
+
   }
 }
 
@@ -32,23 +32,22 @@ data "aws_subnets" "default" {
 # 1. ALB
 # ======================================
 
+# SG 생성
 resource "aws_security_group" "myALB_SG" {
-  name = "myALB_SG"
+  name        = "myALB_SG"
   description = "Allow 80/tcp inbound traffic and all outbound traffic"
-  vpc_id = data.aws_vpc.default.id
+  vpc_id      = data.aws_vpc.default.id
 
 
-  tags = {
-    Name = "myALB_SG"
-  }
+  tags = var.myALG_SG_tag
 }
 
 resource "aws_vpc_security_group_ingress_rule" "allow_80" {
   security_group_id = aws_security_group.myALB_SG.id
   cidr_ipv4         = "0.0.0.0/0"
-  from_port         = 80
+  from_port         = var.web_port
   ip_protocol       = "tcp"
-  to_port           = 80
+  to_port           = var.web_port
 }
 resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_ipv4" {
   security_group_id = aws_security_group.myALB_SG.id
@@ -58,11 +57,11 @@ resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_ipv4" {
 
 
 resource "aws_lb_target_group" "myALB-TG" {
-    name = "myALB-TG"
-    port = 80
-    protocol = "HTTP"
-    vpc_id = data.aws_vpc.default.id
-  
+  name     = "myALB-TG"
+  port     = var.web_port
+  protocol = "HTTP"
+  vpc_id   = data.aws_vpc.default.id
+
 }
 
 
@@ -80,7 +79,7 @@ resource "aws_lb" "myALB" {
 
 resource "aws_lb_listener" "front_end" {
   load_balancer_arn = aws_lb.myALB.arn
-  port              = "80"
+  port              = "${var.web_port}"
   protocol          = "HTTP"
 
 
@@ -111,9 +110,9 @@ resource "aws_lb_listener_rule" "myALB_listener_rule" {
 # ======================================
 
 resource "aws_security_group" "myASG_SG" {
-  name = "myASG_SG"
+  name        = "myASG_SG"
   description = "Allow 80/tcp inbound traffic and all outbound traffic"
-  vpc_id = data.aws_vpc.default.id
+  vpc_id      = data.aws_vpc.default.id
 
 
   tags = {
@@ -124,16 +123,16 @@ resource "aws_security_group" "myASG_SG" {
 resource "aws_vpc_security_group_ingress_rule" "allow_80_myASG" {
   security_group_id = aws_security_group.myASG_SG.id
   cidr_ipv4         = "0.0.0.0/0"
-  from_port         = 80
+  from_port         = var.web_port
   ip_protocol       = "tcp"
-  to_port           = 80
+  to_port           = var.web_port
 }
 resource "aws_vpc_security_group_ingress_rule" "allow_22_myASG" {
   security_group_id = aws_security_group.myASG_SG.id
   cidr_ipv4         = "0.0.0.0/0"
-  from_port         = 22
+  from_port         = var.ssh_port
   ip_protocol       = "tcp"
-  to_port           = 22
+  to_port           = var.ssh_port
 }
 resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_myASG" {
   security_group_id = aws_security_group.myASG_SG.id
@@ -143,8 +142,8 @@ resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_myASG" {
 
 
 data "aws_ami" "amazon_linux_2023" {
-  most_recent      = true
-  owners           = ["137112412989"]
+  most_recent = true
+  owners      = ["137112412989"]
 
   filter {
     name   = "name"
@@ -155,9 +154,9 @@ data "aws_ami" "amazon_linux_2023" {
 resource "aws_launch_template" "myLT" {
   name = "myLT"
 
-  image_id = data.aws_ami.amazon_linux_2023.id
+  image_id      = data.aws_ami.amazon_linux_2023.id
   instance_type = "t2.micro"
-  key_name = "mykeypair2"
+  key_name      = "mykeypair"
 
   vpc_security_group_ids = [aws_security_group.myALB_SG.id]
 
@@ -165,12 +164,21 @@ resource "aws_launch_template" "myLT" {
 }
 
 resource "aws_autoscaling_group" "myASG" {
-  name                      = "myASG"
-  max_size                  = 2
-  min_size                  = 2
-  health_check_type         = "ELB"
-  launch_configuration      = aws_launch_template.myLT.id
-  vpc_zone_identifier       = data.aws_subnets.default.ids
+  name                = "myASG"
+  max_size            = var.asg_max_size
+  min_size            = var.asg_min_size
+  health_check_type   = "ELB"
+  vpc_zone_identifier = data.aws_subnets.default.ids
+
+  # 아래 내용은 aws_lb_target group을 설정한 후 반드시 등록 해 주어야 한다.
+  target_group_arns = [aws_lb_target_group.myALB-TG.arn]
+  depends_on        = [aws_lb_target_group.myALB-TG]
+
+
+  launch_template {
+    id      = aws_launch_template.myLT.id
+    version = var.launch_template_version
+  }
 
   tag {
     key                 = "Name"
