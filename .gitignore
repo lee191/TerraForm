@@ -4,3 +4,4 @@
 **/.terraform.lock.hcl
 */one-web-server-with-vars
 */data-source
+*/module-overview
