@@ -7,3 +7,9 @@ variable "instance_tag" {
     Name = "myinstance"
   }
 }
+
+variable "instance_count" {
+  default = 1
+}
+
+variable "subnet_id" {}

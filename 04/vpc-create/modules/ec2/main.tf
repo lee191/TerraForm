@@ -20,7 +20,9 @@ data "aws_ami" "ubuntu2404" {
 }
 
 resource "aws_instance" "myinstance" {
+  count = var.instance_count
   ami           = data.aws_ami.ubuntu2404.id
   instance_type = var.instance_type
+  subnet_id = var.subnet_id
   tags = var.instance_tag
 }
