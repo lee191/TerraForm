@@ -1,0 +1,21 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - echo "Install dependencies"
+      - pip install -r requirements.txt  # 필요에 따라 변경
+
+  build:
+    commands:
+      - echo "Build process started"
+      - mvn clean package  # Java 프로젝트의 경우 (변경 가능)
+
+  post_build:
+    commands:
+      - echo "Build process completed"
+      - echo "Build output stored"
+
+artifacts:
+  files:
+    - '**/*'  # 빌드 후 생성된 모든 파일을 아티팩트로 저장
